@@ -1,0 +1,199 @@
+######################
+## Scenario settings##
+######################
+Scenario.name = strustv
+
+
+Scenario.simulateConnections = [true]
+Scenario.updateInterval = [1]
+Scenario.endTime = [4200]
+Scenario.trustThreshold = 0.51
+Scenario.thresholdUpdateInterval = 400
+
+# Define new application
+modApp.type = ModificationApplication
+
+securityApp.type = SecurityApplication
+securityApp.PLT = 0.7
+securityApp.BD = 0.4
+securityApp.warmup = 100
+
+socialApp.type = SocialApplication
+socialApp.SFT = 0.5
+socialApp.warmup = 100
+
+badmouthApp.type = BadmouthApplication
+
+blackHoleApp.type = BlackHoleApplication
+
+rsuApp.type = RSUApplication
+rsuApp.interval = 300
+rsuApp.nrofHosts = 60
+
+rerouteApp.type = RerouteApplication
+
+##############################
+##Transmission Configuration##
+##############################
+
+/****Router Radio Range****/
+preRouterInterface.type = RouterPreConnInterface1
+preRouterInterface.name = R2R
+preRouterInterface.transmitSpeed = [1M]
+preRouterInterface.transmitRange = [200]
+
+btInterface.type = STALBVehicleToRouterInterface
+btInterface.name = V2R
+btInterface.transmitSpeed = [500k]
+btInterface.transmitRange = [200]
+
+vvInterface.type = SimpleBroadcastInterface
+vvInterface.name = V2V
+vvInterface.transmitSpeed = [500k]
+vvInterface.transmitRange = [200]
+
+Scenario.nrofHostGroups = [6]
+
+Group.router = [SourceSprayAndWaitRouter]
+Group.bufferSize = [1G]
+
+SprayAndWaitRouter.nrofCopies = [10]
+
+MTTSRouter.nrofCopies = [10]
+MTTSRouter.alpha = 0.3 
+MTTSRouter.beta = 0.4  
+MTTSRouter.gamma = 0.3
+MTTSRouter.rho  = 0.8
+MTTSRouter.statusThreshold = 0.75
+
+######################
+##Message Generation##
+######################
+Events.nrof = [1]
+Events1.class = [MessageEventGenerator]
+Events1.interval =[1]
+Events1.size = [1M]
+Events1.hosts = [100,144]
+Events1.tohosts = [0,159]
+Events1.prefix = [M]
+Events1.time = [0,18010]
+
+Optimization.pmmlModelPath = target/model/RF.pmml
+
+Group.nrofInterfaces = [2]
+Group.interface1 = [btInterface]
+Group.interface2 = [vvInterface]
+Group.movementModel = [ShortestPathMapBasedMovement]
+Group.speed = [5,15]
+Group.nrofHosts = [4]
+Group.cubeSize=[36]
+Group.application2 = socialApp
+Group.maliciousType = NONE
+
+Group1.router = MultipahTrajectoryTimeSpaceRouter
+Group1.movementModel = RouterPlacementMovement1
+Group1.groupID = R
+Group1.speed = [0,0]
+Group1.cubeSize = [36]
+Group1.gap = [200]
+Group1.nrofHosts = [20]
+Group1.categoryMark = ROUTER
+Group1.nrofInterfaces = [2]
+Group1.interface1 = preRouterInterface
+Group1.msgTtl = [60]
+Group1.interface2 = btInterface
+Group1.nrofApplications = 2
+Group1.application1 = rerouteApp
+Group1.application2 = rsuApp
+Group1.maliciousType = BLACKHOLEATTACK
+#Group1.maliciousType = NONE
+
+Group2.movementModel = RouterPlacementMovement1
+Group2.router = MultipahTrajectoryTimeSpaceRouter
+Group2.groupID = R
+Group2.speed = [0,0]
+Group2.cubeSize = [36]
+Group2.gap = [200]
+Group2.nrofHosts = [80]
+Group2.categoryMark = ROUTER
+Group2.nrofInterfaces = [2]
+Group2.interface1 = preRouterInterface
+Group2.msgTtl = [60]
+Group2.interface2 = btInterface
+Group2.nrofApplications = 2
+Group2.application1 = rerouteApp
+Group2.application2 = rsuApp
+
+# The Tram groups
+Group3.groupID = t
+Group3.router = MultipathTrajectoryVehicleToRouterRouter
+Group3.movementModel = MapRouteMovement
+Group3.routeFile = data/tram3.wkt
+Group3.routeType = 1
+Group3.waitTime = 10, 30
+Group3.speed = 7, 10
+Group3.nrofHosts = 3
+Group3.categoryMark = VEHICLE
+Group3.nrofApplications = 2
+Group3.application1 = securityApp
+
+Group4.groupID = [EV]
+Group4.router = MultipathTrajectoryVehicleToRouterRouter
+Group4.movementModel = ShortestPathMapBasedMovement
+Group4.speed = [5,15]
+Group4.nrofHosts = [28]
+Group4.categoryMark = VEHICLE
+Group4.msgTtl = [60]
+Group4.nrofApplications = 2
+Group4.application1 = securityApp
+
+Group5.groupID = [b]
+Group5.router = MultipathTrajectoryVehicleToRouterRouter
+Group5.movementModel = ShortestPathMapBasedMovement
+Group5.speed = [5,15]
+Group5.nrofHosts = [14]
+Group5.categoryMark = VEHICLE
+Group5.msgTtl = [60]
+Group5.nrofApplications = 3
+Group5.application1 = badmouthApp
+Group5.application3 = modApp
+
+
+Group6.groupID = [h]
+Group6.router = MultipathTrajectoryVehicleToRouterRouter
+Group6.movementModel = ShortestPathMapBasedMovement
+Group6.speed = [5,15]
+Group6.nrofHosts = [15]
+Group6.categoryMark = VEHICLE
+Group6.msgTtl = [60]
+Group6.nrofApplications = 1
+Group6.application1 = blackHoleApp
+Group6.application3 = securityApp
+
+
+##############################
+#####Report Configuration#####
+##############################
+Report.nrofReports = [1]
+Report.warmup = [0]
+Report.reportDir = reports/
+
+Report.report1 = MessageStatsReport
+#Report.report2 = SecurityAppReporter
+#Report.report2 = MTTSRouterReport
+
+
+##############################
+####Mobility Configuration####
+##############################
+MovementModel.rngSeed = [0]
+MovementModel.worldSize = [4500,3400]
+MovementModel.warmup = [0]
+
+MapBasedMovement.nrofMapFiles = 4
+MapBasedMovement.mapFile1 = data/roads.wkt
+MapBasedMovement.mapFile2 = data/main_roads.wkt
+MapBasedMovement.mapFile3 = data/pedestrian_paths.wkt
+MapBasedMovement.mapFile4 = data/shops.wkt
+
+

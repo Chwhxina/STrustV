@@ -1,0 +1,184 @@
+######################
+## Scenario settings##
+######################
+#不同消息数量,固定比例
+Scenario.name = /SYJ-experiments/STALB/Cyberspace_Race/STALB@%%Scenario.endTime%%@%%Events1.interval%%s@%%Group1.groupID%%^%%Group2.groupID%%^%%Group3.groupID%%-%%Group1.nrofHosts%%^%%Group2.nrofHosts%%^%%Group3.nrofHosts%%
+#节点个数对VRCRouter的影响程度
+#Scenario.name = /SYJ-experiments/STALB/Nodes/STALB@%%Scenario.endTime%%@%%Events1.interval%%s@%%Group1.groupID%%^%%Group2.groupID%%-%%Group1.nrofHosts%%^%%Group2.nrofHosts%%
+
+
+Scenario.simulateConnections = [true]
+Scenario.updateInterval = [0.1]
+Scenario.endTime = [18000]
+Scenario.trustThreshold = 0.51
+Scenario.thresholdUpdateInterval = 400
+##############################
+##Transmission Configuration##
+##############################
+
+/****Router Radio Range****/
+preRouterInterface.type = RouterPreConnInterface1
+preRouterInterface.transmitSpeed = [1M]
+preRouterInterface.transmitRange = [200]
+preRouterInterface.name = R2R
+
+btInterface.type = STALBVehicleToRouterInterface
+btInterface.transmitSpeed = [500k]
+btInterface.transmitRange = [200]
+btInterface.name = V2R
+
+vvInterface.type = SimpleBroadcastInterface
+vvInterface.name = V2V
+vvInterface.transmitSpeed = [500k]
+vvInterface.transmitRange = [200]
+
+Scenario.nrofHostGroups = [3]
+
+Group.router = [SourceSprayAndWaitRouter]
+Group.bufferSize = [1G]
+
+SprayAndWaitRouter.nrofCopies = [10]
+
+MTTSRouter.nrofCopies = [10]
+#0.2 0.6 0.2
+MTTSRouter.alpha = 0.3 
+MTTSRouter.beta = 0.4  
+MTTSRouter.gamma = 0.3
+MTTSRouter.rho  = 0.8
+MTTSRouter.statusThreshold = 0.75
+
+######################
+##Message Generation##
+######################
+Events.nrof = [2]
+Events1.class = [MessageEventGenerator]
+Events1.size = [1M]
+Events1.prefix = [M]
+Events1.time = [0,18010]
+
+Optimization.pmmlModelPath = target/model/RF.pmml
+#######################################
+##Update Period For Changing Decision##
+######0 Means No Updating Process######
+###########################
+Group.TripUpdating= [0]
+
+########################################
+##True, For Directly Moving Towards CS##
+########################################
+Group.TripPlanning = [true]
+Group.nrofInterfaces = [2]
+Group.interface1 = [btInterface]
+Group.interface2 = [vvInterface]
+Group.movementModel = [ShortestPathMapBasedMovement]
+Group.speed = [5,15]
+Group.nrofHosts = [4]
+Group.cubeSize=[36]
+Group.maliciousType = NONE
+
+Group1.router = MultipahTrajectoryTimeSpaceRouter
+Group1.movementModel = RouterPlacementMovement1
+Group1.groupID = R
+Group1.speed = [0,0]
+Group1.cubeSize = [36]
+Group1.gap = [200]
+Group1.categoryMark = ROUTER
+Group1.nrofInterfaces = [2]
+Group1.interface1 = preRouterInterface
+Group1.msgTtl = [60]
+Group1.interface2 = btInterface
+Group1.maliciousType = BLACKHOLEATTACK
+
+Group2.router = MultipahTrajectoryTimeSpaceRouter
+Group2.movementModel = RouterPlacementMovement1
+Group2.groupID = R
+Group2.speed = [0,0]
+Group2.cubeSize = [36]
+Group2.gap = [200]
+Group2.categoryMark = ROUTER
+Group2.nrofInterfaces = [2]
+Group2.interface1 = preRouterInterface
+Group2.msgTtl = [60]
+Group2.interface2 = btInterface
+
+
+
+Group3.groupID = [EV]
+Group3.router = MultipathTrajectoryVehicleToRouterRouter
+Group3.movementModel = ShortestPathMapBasedMovement
+Group3.speed = [5,15]
+Group3.categoryMark = VEHICLE
+#Group3.nrofInterfaces = [1]
+#Group3.interface1 = btInterface
+Group3.msgTtl = [60]
+
+Group1.nrofHosts = [20]
+Group2.nrofHosts = [80]
+Group3.nrofHosts = [40]
+Events1.interval =[5]
+Events1.hosts = [100,139]
+Events1.tohosts = [0,99]
+#Events1.hosts = [80,119]
+#Events1.tohosts = [0,79]
+
+##############################
+#####Report Configuration#####
+##############################
+Report.nrofReports = [2]
+Report.warmup = [0]
+Report.reportDir = reports/
+
+Report.report1 = MessageStatsReport
+#Report.report2 = CyberspaceRaceRouterReport
+#Report.report2 = MTTSRouterReport
+
+
+##############################
+####Mobility Configuration####
+##############################
+MovementModel.rngSeed = [0]
+MovementModel.worldSize = [4500,3400]
+MovementModel.warmup = [0]
+
+MapBasedMovement.nrofMapFiles = 4
+MapBasedMovement.mapFile1 = data/roads.wkt
+MapBasedMovement.mapFile2 = data/main_roads.wkt
+MapBasedMovement.mapFile3 = data/pedestrian_paths.wkt
+MapBasedMovement.mapFile4 = data/shops.wkt
+
+###########################
+####Energy Configuration###
+###########################
+Group.chargeInterval = [0.1]
+Group.SOC = [0.4]
+
+################################
+#Configuration of Charging Slot#
+################################
+Group.chargeSlot = [3]
+
+##############################
+#####Energy Configuration#####
+##############################
+/*----108000KJ=30KWh----*/
+Group1.intialEnergy = [108000]
+
+/*----108000KJ/161000Meters=0.67801KJ/Meters----*/
+Group1.movingEnergy = [0]
+
+Group2.intialEnergy = [108000]
+Group2.movingEnergy = [0]
+Group3.intialEnergy = [108000]
+Group3.movingEnergy = [0]
+
+
+#####################################
+Selection CS: 0= Distance;
+              1= Waiting Time;
+#####################################
+Schedule EV: 0= Shortest Charging Time; 
+             1= Longest Charging Time; 
+             2= Earliest Departure 
+             other= FIFO;
+#####################################
+

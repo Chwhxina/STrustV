@@ -1,0 +1,28 @@
+/*
+ * Copyright 2010 Aalto University, ComNet
+ * Released under GPLv3. See LICENSE.txt for details.
+ */
+package core;
+
+/** Error in the simulation */
+public class SimError extends AssertionError {
+  private final Exception e;
+
+  public SimError(String cause) {
+    super(cause);
+    this.e = null;
+  }
+
+  public SimError(String cause, Exception e) {
+    super(cause);
+    this.e = e;
+  }
+
+  public SimError(Exception e) {
+    this(e.getMessage(), e);
+  }
+
+  public Exception getException() {
+    return this.e;
+  }
+}
