@@ -57,6 +57,10 @@ public class MultipathTrajectoryVehicleToRouterRouter extends SourceSprayAndWait
     this.msgFromRouter = r.msgFromRouter;
   }
 
+  public void addAckedMessageIds(Set<String> ams) {
+    ackedMessageIds.addAll(ams);
+  }
+
   @Override
   public void update() {
     super.update();
@@ -263,7 +267,7 @@ public class MultipathTrajectoryVehicleToRouterRouter extends SourceSprayAndWait
   /**
    * Delete delivered messages.
    */
-  private void deleteAckedMessages() {
+  protected void deleteAckedMessages() {
     Collection<Message> Ms = getMessageCollection();
     Object[] tmpMs = Ms.toArray();
     for (int i = 0; i < tmpMs.length; i++) {

@@ -104,13 +104,22 @@ Group2.interface2 = btInterface
 
 
 Group3.groupID = [EV]
-Group3.router = MultipathTrajectoryVehicleToRouterRouter
+Group3.router = V2xRouter
 Group3.movementModel = ShortestPathMapBasedMovement
 Group3.speed = [5,15]
 Group3.categoryMark = VEHICLE
 #Group3.nrofInterfaces = [1]
 #Group3.interface1 = btInterface
 Group3.msgTtl = [60]
+
+Group4.groupID = [SF]
+Group4.router = V2xRouterSelfish
+Group4.movementModel = ShortestPathMapBasedMovement
+Group4.speed = [5,15]
+Group4.categoryMark = VEHICLE
+#Group4.nrofInterfaces = [1]
+#Group4.interface1 = btInterface
+Group4.msgTtl = [60]
 
 Group1.nrofHosts = [20]
 Group2.nrofHosts = [80]
@@ -166,9 +175,9 @@ Group1.intialEnergy = [108000]
 /*----108000KJ/161000Meters=0.67801KJ/Meters----*/
 Group1.movingEnergy = [0]
 
-Group2.intialEnergy = [108000]
+Group2.initialEnergy = [108000]
 Group2.movingEnergy = [0]
-Group3.intialEnergy = [108000]
+Group3.initialEnergy = [108000]
 Group3.movingEnergy = [0]
 
 
