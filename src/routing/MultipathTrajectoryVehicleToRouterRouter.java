@@ -248,7 +248,7 @@ public class MultipathTrajectoryVehicleToRouterRouter extends SourceSprayAndWait
     }
   }
 
-  private class TupleComparator implements Comparator<Tuple<Message, Connection>> {
+  protected class TupleComparator implements Comparator<Tuple<Message, Connection>> {
 
     public int compare(Tuple<Message, Connection> tuple1, Tuple<Message, Connection> tuple2) {
       double p1 = tuple1.getKey().getReceiveTime();

@@ -14,36 +14,41 @@ public class V2xRouter extends MultipathTrajectoryVehicleToRouterRouter{
     protected double energyThs = 0.8;  //能源阈值
     /** 贡献表和消费表 */
     public Map<DTNHost, Double> contributionTab;   //贡献表
-    public Map<DTNHost, Double> comsumptionTab;    //消费表
+    public Map<DTNHost, Double> consumptionTab;    //消费表
     protected Map<DTNHost, Double> reputationTab;  //声誉表
-    protected Map<DTNHost, Double> preRepsTab;     //综合度量
+    protected Map<DTNHost, Double> finalScoreTab;     //综合度量
     protected Map<DTNHost, Double> preds;          //碰撞因素
-    protected boolean initRep;
-    protected double lastAgeUpdate;
+    protected boolean initRep;      //声誉是否初始化
+    protected double lastAgeUpdate; //上一次碰撞更新
 
     /** 初始preRep */
-    private final double preRepInit = 0.5;
-    protected final int secondsInTimeUnit = 30;
+    private final double finalScoreInit = 0.5;
+    protected final int secondsInTimeUnit = 30; //碰撞因素老化间隔
     private final double beta = 0.25;
     private final double gamma = 0.98;
     private static final double P_INIT = 0.25;
 
     V2xRouter(Settings s) {
         super(s);
-        comsumptionTab = new HashMap<DTNHost, Double>();
+        consumptionTab = new HashMap<DTNHost, Double>();
         contributionTab = new HashMap<DTNHost, Double>();
         reputationTab = new HashMap<DTNHost, Double>();
-        preRepsTab = new HashMap<>();
+        finalScoreTab = new HashMap<>();
         initRep = false;
     }
     V2xRouter(V2xRouter r) {
         super(r);
-        comsumptionTab = new HashMap<DTNHost, Double>();
+        consumptionTab = new HashMap<DTNHost, Double>();
         contributionTab = new HashMap<DTNHost, Double>();
         reputationTab = new HashMap<DTNHost, Double>();
-        preRepsTab = new HashMap<>();
+        finalScoreTab = new HashMap<>();
         initRep = r.initRep;
     }
+
+    /***
+     * 二元组(Message, Connection)
+     * @return  将要通过Connection发送的消息
+     */
     @Override
     public Tuple<Message, Connection> tryOtherMessages() {
         //		removeAllUntransmitMsg();
@@ -60,12 +65,14 @@ public class V2xRouter extends MultipathTrajectoryVehicleToRouterRouter{
             for (Message m : msgToVehicle) {
                 Integer nrofCopies = (Integer) m.getProperty(MSG_COUNT_PROPERTY);
                 if (nrofCopies > 1) {
-                    if(otherRouter.getPredFor(m.getTo()) > this.getPredFor(m.getTo()))
+                    //如果一个节点消息的综合度量更大，就将消息复制给他
+                    if(otherRouter.getFinalScoreFor(m.getTo()) > this.getFinalScoreFor(m.getTo()))
                         midQueue.add(new Tuple<Message, Connection>(m, c));
                 }
             }
         }
-        Collections.sort(midQueue, new TupleComparator());
+        //消息按照综合得分进行排序
+        Collections.sort(midQueue, new TupleComparatorV2V());
         tryMessagesForConnected(midQueue);
         midQueue.clear();
 
@@ -117,12 +124,19 @@ public class V2xRouter extends MultipathTrajectoryVehicleToRouterRouter{
         priorityQueue.addAll(midQueue);
         return tryMessagesForConnected(priorityQueue);
     }
-    public double getPredFor(DTNHost otherhost) {
-        if(this.preRepsTab.containsKey(otherhost))
-            return this.preRepsTab.get(otherhost);
-        this.preRepsTab.put(otherhost, preRepInit);
-        return 0.5;
+
+    /***
+     * 获取finalScore
+     * @param otherhost 想要查询的节点DTNhost
+     * @return finScore
+     */
+    public double getFinalScoreFor(DTNHost otherhost) {
+        if(this.finalScoreTab.containsKey(otherhost))
+            return this.finalScoreTab.get(otherhost);
+        this.finalScoreTab.put(otherhost, finalScoreInit);
+        return finalScoreInit;
     }
+
     /**
      * 测试移动稳定性
      * @param targetHost 目标节点
@@ -139,25 +153,29 @@ public class V2xRouter extends MultipathTrajectoryVehicleToRouterRouter{
         return 1 - ((accumulateSpeedGap / a) / maxSpeedGap);
     }
 
+    /***
+     * 重写con状态改变时调用的方法
+     * @param con The connection whose state changed
+     */
     @Override
     public void changedConnection(Connection con) {
-        double preRepOther;
+        double finalScore;  //con连接节点的finalScore
         super.changedConnection(con);
         DTNHost otherHost = con.getOtherNode(this.getHost());
-        updateDeliveryPredFor(otherHost);
-        updateRep(this.getHost().getNeighbors());
+        updateDeliveryPredFor(otherHost);   //更新
+        updateRep(this.getHost().getNeighbors());   //更新声誉
         double repFactor = this.getRep(otherHost);
         double energyPart = (((V2xRouter)otherHost.getRouter()).energy.getEnergy() / 40000);
         double otherFactor = 0.3 * stableScore(otherHost) + 0.5 * energyPart
                 + 0.2 * (1.0-(otherHost.getBufferOccupancy()/100.0));
-        preRepOther = fuzzyLogic(repFactor, otherFactor, getPredFor(otherHost));
-        this.preRepsTab.put(otherHost, preRepOther);
+        finalScore = fuzzyLogic(repFactor, otherFactor, getPredFor(otherHost));
+        this.preds.put(otherHost, finalScore);
 
         //传递概率
         updateTransitivePreds(otherHost);
 
         //传递声誉
-        updateTransiveProPreds(otherHost);
+        updateTransiveFinalScore(otherHost);
 
 
         if (con.isUp()) {
@@ -165,7 +183,15 @@ public class V2xRouter extends MultipathTrajectoryVehicleToRouterRouter{
                     MultipahTrajectoryTimeSpaceRouter.getArrivedM().keySet());
             this.addAckedMessageIds(aMs);
             deleteAckedMessages();
-        } else if (!con.isUp()) {
+        }
+    }
+
+    public double getPredFor(DTNHost host) {
+        this.ageDeliveryPreds(); // make sure preds are updated before getting
+        if (this.preds.containsKey(host)) {
+            return this.preds.get(host);
+        } else {
+            return 0;
         }
     }
 
@@ -180,6 +206,10 @@ public class V2xRouter extends MultipathTrajectoryVehicleToRouterRouter{
         this.preds.put(host, newValue);
     }
 
+    /***
+     * 将碰撞因子传递给某个节点
+     * @param host 节点
+     */
     protected void updateTransitivePreds(DTNHost host) {
         MessageRouter otherRouter = host.getRouter();
         assert otherRouter instanceof V2xRouter
@@ -199,7 +229,11 @@ public class V2xRouter extends MultipathTrajectoryVehicleToRouterRouter{
         }
     }
 
-    protected void updateTransiveProPreds(DTNHost host) {
+    /***
+     * finalScore的传递性，传递给某个节点
+     * @param host 节点
+     */
+    protected void updateTransiveFinalScore(DTNHost host) {
         MessageRouter otherRouter = host.getRouter();
         assert otherRouter instanceof V2xRouter
                 : "V2xRouter only works " + " with other routers of same type";
@@ -214,28 +248,26 @@ public class V2xRouter extends MultipathTrajectoryVehicleToRouterRouter{
             this.reputationTab.put(e.getKey(), pNew);
         }
     }
-
     private Map<DTNHost, Double> getReputationTab() {
         return reputationTab;
     }
-
     private Map<DTNHost, Double> getDeliveryPreds() {
         this.ageDeliveryPreds(); // make sure the aging is done
         return this.preds;
     }
 
+    /***
+     * 碰撞因子的老化函数
+     */
     protected void ageDeliveryPreds() {
         double timeDiff = (SimClock.getTime() - this.lastAgeUpdate) / this.secondsInTimeUnit;
-
         if (timeDiff == 0) {
             return;
         }
-
         double mult = Math.pow(this.gamma, timeDiff);
         for (Map.Entry<DTNHost, Double> e : this.preds.entrySet()) {
             e.setValue(e.getValue() * mult);
         }
-
         this.lastAgeUpdate = SimClock.getTime();
     }
 
@@ -255,10 +287,10 @@ public class V2xRouter extends MultipathTrajectoryVehicleToRouterRouter{
             else {
                 contributionTab.put(mHost, ((V2xRouter) mHost.getRouter()).getSelfCon());
             }
-            if (comsumptionTab.containsKey(mHost))
-                aComsumption = comsumptionTab.get(mHost);
+            if (consumptionTab.containsKey(mHost))
+                aComsumption = consumptionTab.get(mHost);
             else
-                comsumptionTab.put(mHost, ((V2xRouter)mHost.getRouter()).getSelfCon());
+                consumptionTab.put(mHost, ((V2xRouter)mHost.getRouter()).getSelfCon());
             double t = (aContribution / (aContribution + aComsumption))*0.3 + getRep(mHost)*0.7;
             reputationTab.put(mHost, t);
         }
@@ -267,30 +299,41 @@ public class V2xRouter extends MultipathTrajectoryVehicleToRouterRouter{
     public double getSelfCon() {
         if(!initRep){
             contributionTab.put(this.getHost(), 1.0);
-            comsumptionTab.put(this.getHost(), 1.0);
+            consumptionTab.put(this.getHost(), 1.0);
             initRep = true;
         }
         return contributionTab.get(this.getHost());
     }
 
-
+    /***
+     * 每次获取一个节点的声誉时就对其进行计算
+     * @param host 节点
+     * @return 声誉值
+     */
     protected double getRep(DTNHost host) {
         if(reputationTab.containsKey(host))
             return reputationTab.get(host);
-        if(comsumptionTab.containsKey(host) && contributionTab.containsKey(host)) {
-            double t = contributionTab.get(host) / (contributionTab.get(host) + comsumptionTab.get(host));
+        if(consumptionTab.containsKey(host) && contributionTab.containsKey(host)) {
+            double t = contributionTab.get(host) / (contributionTab.get(host) + consumptionTab.get(host));
             reputationTab.put(host, t);
             return t;
         }
         contributionTab.put(host, ((V2xRouter)host.getRouter()).getSelfCon());
-        comsumptionTab.put(host, ((V2xRouter)host.getRouter()).getSelfCon());
-        return contributionTab.get(host) / (contributionTab.get(host) + comsumptionTab.get(host));
+        consumptionTab.put(host, ((V2xRouter)host.getRouter()).getSelfCon());
+        return contributionTab.get(host) / (contributionTab.get(host) + consumptionTab.get(host));
     }
 
     public V2xRouter replicate() {
         return new V2xRouter(this);
     }
 
+    /***
+     * 模糊逻辑获取finalScore
+     * @param repFactor 声音值
+     * @param otherfactor 其它因素
+     * @param probabilityFactor 碰撞因素
+     * @return finalSCore
+     */
     public double fuzzyLogic(double repFactor, double otherfactor, double probabilityFactor) {
         String fileName = "/Users/wanghaoxiang/Documents/Code/one-framework/src/routing/repPro.fcl";
         FIS fis = FIS.load(fileName, true);
@@ -311,9 +354,40 @@ public class V2xRouter extends MultipathTrajectoryVehicleToRouterRouter{
         return functionBlock.getVariable("rank").getValue();
     }
 
+    /***
+     * rewrite createNewMessage method to update comsumptionTab
+     * @param msg The message to create
+     * @return is successful creat a new message
+     */
+    @Override
+    public boolean createNewMessage(Message msg) {
+        this.consumptionTab.computeIfPresent(this.getHost(), (key, value) -> value = value + 2);
+        System.out.println("DTN"+ getHost().toString() + " con"+contributionTab.get(getHost())+" com"+consumptionTab.get(getHost())+" rep"+getRep(getHost()));
+        return super.createNewMessage(msg);
+    }
 
+    @Override
+    public Message messageTransferred(String id, DTNHost from) {
+        Message msg =  super.messageTransferred(id, from);
+        boolean isDelivered = this.isDeliveredMessage(msg);
+        for(var mHost : this.getHost().getNeighbors()) {
+            if(isDelivered) {
+                ((V2xRouter)mHost.getRouter()).consumptionTab.computeIfPresent(this.getHost(), (key, value) -> value = value + msg.getHopCount());
+                ((V2xRouter)mHost.getRouter()).consumptionTab.computeIfPresent(msg.getFrom(), (key, value) -> value = value + msg.getHopCount());
+            } else {
+                ((V2xRouter)mHost.getRouter()).contributionTab.computeIfPresent(this.getHost(), (key, value) -> value + 1);
+                ((V2xRouter)mHost.getRouter()).contributionTab.computeIfPresent(from, (key, value) -> value + 1);
+                ((V2xRouter)mHost.getRouter()).consumptionTab.computeIfPresent(msg.getFrom(), (key, value) -> value + 2);
+            }
+        }
+        if(isDelivered)
+            consumptionTab.computeIfPresent(msg.getFrom(), (key, value) -> value = value + msg.getHopCount());
+        else
+            contributionTab.computeIfPresent(from, (key, value) -> value + 1);
+        return msg;
+    }
 
-    protected class TupleComparator implements Comparator<Tuple<Message, Connection>> {
+    protected class TupleComparatorV2V implements Comparator<Tuple<Message, Connection>> {
 
         @Override
         public int compare(Tuple<Message, Connection> tuple1, Tuple<Message, Connection> tuple2) {
@@ -337,5 +411,4 @@ public class V2xRouter extends MultipathTrajectoryVehicleToRouterRouter{
             }
         }
     }
-
 }
