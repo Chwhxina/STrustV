@@ -1,6 +1,7 @@
 package routing;
 
 import core.*;
+import movement.RouterPlacementMovement;
 import net.sourceforge.jFuzzyLogic.FIS;
 import net.sourceforge.jFuzzyLogic.FunctionBlock;
 import util.Tuple;
@@ -28,20 +29,24 @@ public class V2xRouter extends MultipathTrajectoryVehicleToRouterRouter{
     private final double gamma = 0.98;
     private static final double P_INIT = 0.25;
 
-    V2xRouter(Settings s) {
+   public V2xRouter(Settings s) {
         super(s);
+        Settings V2xRouterSetting = new Settings("V2xRouter");
         consumptionTab = new HashMap<DTNHost, Double>();
         contributionTab = new HashMap<DTNHost, Double>();
         reputationTab = new HashMap<DTNHost, Double>();
         finalScoreTab = new HashMap<>();
         initRep = false;
     }
-    V2xRouter(V2xRouter r) {
+    public V2xRouter(V2xRouter r) {
         super(r);
         consumptionTab = new HashMap<DTNHost, Double>();
         contributionTab = new HashMap<DTNHost, Double>();
         reputationTab = new HashMap<DTNHost, Double>();
         finalScoreTab = new HashMap<>();
+        energyThs = r.energyThs;
+        preds = r.preds;
+        lastAgeUpdate = r.lastAgeUpdate;
         initRep = r.initRep;
     }
 

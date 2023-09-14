@@ -101,8 +101,6 @@ Group2.interface1 = preRouterInterface
 Group2.msgTtl = [60]
 Group2.interface2 = btInterface
 
-
-
 Group3.groupID = [EV]
 Group3.router = V2xRouter
 Group3.movementModel = ShortestPathMapBasedMovement
@@ -113,7 +111,7 @@ Group3.categoryMark = VEHICLE
 Group3.msgTtl = [60]
 
 Group4.groupID = [SF]
-Group4.router = V2xRouterSelfish
+Group4.router = V2xRouter
 Group4.movementModel = ShortestPathMapBasedMovement
 Group4.speed = [5,15]
 Group4.categoryMark = VEHICLE
@@ -124,6 +122,8 @@ Group4.msgTtl = [60]
 Group1.nrofHosts = [20]
 Group2.nrofHosts = [80]
 Group3.nrofHosts = [40]
+Group4.nrofHosts = [10]
+
 Events1.interval =[5]
 Events1.hosts = [100,139]
 Events1.tohosts = [0,99]
@@ -173,13 +173,12 @@ Group.chargeSlot = [3]
 Group1.intialEnergy = [108000]
 
 /*----108000KJ/161000Meters=0.67801KJ/Meters----*/
-Group1.movingEnergy = [0]
-
-Group2.initialEnergy = [108000]
-Group2.movingEnergy = [0]
 Group3.initialEnergy = [108000]
 Group3.movingEnergy = [0]
 
+Group3.scanEnergy = [1]
+Group3.scanResponseEnergy = [1]
+Group3.transmitEnergy = [2]
 
 #####################################
 Selection CS: 0= Distance;

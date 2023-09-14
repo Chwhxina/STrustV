@@ -53,6 +53,13 @@
             <systemPath>${project.basedir}/lib/ECLA.jar</systemPath>
         </dependency>
         <dependency>
+            <groupId>net.sourceforge.jFuzzyLogic</groupId>
+            <artifactId>jFuzzyLogic</artifactId>
+            <version>1.2.1</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/lib/jFuzzyLogic.jar</systemPath>
+        </dependency>
+        <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
             <version>4.13.2</version>
@@ -82,5 +89,10 @@
             <artifactId>pmml-evaluator-metro</artifactId>
             <version>1.6.4</version>
         </dependency>
+<!--        <dependency>-->
+<!--            <groupId>net.sourceforge.jFuzzyLogic</groupId>-->
+<!--            <artifactId>jFuzzyLogic</artifactId>-->
+<!--            <version>1.2.1</version>-->
+<!--        </dependency>-->
     </dependencies>
 </project>
