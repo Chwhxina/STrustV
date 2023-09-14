@@ -62,6 +62,16 @@ public class MultipathTrajectoryVehicleToRouterRouter extends SourceSprayAndWait
     super.update();
   }
 
+  public HashMap<String, List<String>> getSendRSU() {
+    return this.sendRSU;
+  }
+  public Map<String, Message> getMsgFromRouter() {
+    return this.msgFromRouter;
+  }
+
+  public Set<String> getackedMessageIds() {
+    return this.ackedMessageIds;
+  }
 
   @Override
   public Tuple<Message, Connection> tryOtherMessages() {

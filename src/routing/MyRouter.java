@@ -32,13 +32,13 @@ public class MyRouter extends ProphetRouter {
 
   public static final String ENERGY_THS = "EnergyThs";
 
-  protected double energyThs = 0.9;
+  protected double energyThs = 0.9;  //能源阈值
 
   /** 贡献表和消费表 */
-  public Map<DTNHost, Double> contributionTab;
-  public Map<DTNHost, Double> comsumptionTab;
-  protected Map<DTNHost, Double> reputationTab;
-  protected Map<DTNHost, Double> preRepsTab;
+  public Map<DTNHost, Double> contributionTab;   //贡献表
+  public Map<DTNHost, Double> comsumptionTab;    //消费表
+  protected Map<DTNHost, Double> reputationTab;  //声誉表
+  protected Map<DTNHost, Double> preRepsTab;     //综合度量
   protected boolean initRep;
   /** 初始preRep */
   private final double preRepInit = 1;
@@ -60,6 +60,7 @@ public class MyRouter extends ProphetRouter {
     this.contributionTab = r.contributionTab;
     this.reputationTab = new HashMap<>();
     this.preRepsTab = new HashMap<>();
+    initRep = r.initRep;
 
     //能量阈值
     this.energyThs = r.energyThs;
@@ -68,6 +69,7 @@ public class MyRouter extends ProphetRouter {
   @Override
   public void update(){
     super.getupdate();
+
     //之后尝试转发
     if (!this.canStartTransfer() || this.isTransferring()) {
       return;
@@ -82,6 +84,7 @@ public class MyRouter extends ProphetRouter {
     this.tryOtherMessages();
   }
 
+  //获取自己的声誉信息
   public double getSelfCon() {
     if(!initRep){
       contributionTab.put(this.getHost(), 1.0);
@@ -89,14 +92,6 @@ public class MyRouter extends ProphetRouter {
       initRep = true;
     }
     return contributionTab.get(this.getHost());
-  }
-  public double getSelfCom() {
-    if(!initRep){
-      contributionTab.put(this.getHost(), 1.0);
-      comsumptionTab.put(this.getHost(), 1.0);
-      initRep = true;
-    }
-    return comsumptionTab.get(this.getHost());
   }
 
   /**
@@ -146,45 +141,6 @@ public class MyRouter extends ProphetRouter {
     return 1;
   }
 
-  protected double getSS(DTNHost host){
-    if(getHost().toString().contains("ip")){
-      if(host.toString().contains("ip"))
-        return 1;
-      if(host.toString().contains("iw")){
-        return 0.75;
-      }
-      if(host.toString().contains("ic") || host.toString().contains("is"))
-        return 0.3;
-    }
-    else if(getHost().toString().contains("ic")){
-      if(host.toString().contains("ic"))
-        return 1;
-      if(host.toString().contains("is")){
-        return 0.75;
-      }
-      if(host.toString().contains("ip") || host.toString().contains("iw"))
-        return 0.3;
-    }
-    else if(getHost().toString().contains("iw")){
-      if(host.toString().contains("iw"))
-        return 1;
-      if(host.toString().contains("ip")){
-        return 0.75;
-      }
-      if(host.toString().contains("ic") || host.toString().contains("is"))
-        return 0.3;
-    }
-    else if(getHost().toString().contains("is")){
-      if(host.toString().contains("is"))
-        return 1;
-      if(host.toString().contains("ic")){
-        return 0.75;
-      }
-      if(host.toString().contains("iw") || host.toString().contains("ip"))
-        return 0.3;
-    }
-    return 0;
-  }
 
   @Override
   public void changedConnection(Connection con) {
@@ -200,12 +156,12 @@ public class MyRouter extends ProphetRouter {
       double otherFactor = 0.3 * stableScore(otherHost) + 0.5 * energyPart
           + 0.2 * (1.0-(otherHost.getBufferOccupancy()/100.0));
 
-      preRepOther = fuzzyLogic(repFactor, otherFactor, getSS(otherHost));
+      preRepOther = fuzzyLogic(repFactor, otherFactor, preds.get(otherHost));
       //System.out.println("neighbour:"+this.getHost().getNeighbors().size() + " rep" + this.getRep(otherHost) + " oth:"+otherFactor + " pred:"+preds.get(otherHost) + " res:"+preRepOther);
       this.preRepsTab.put(otherHost, preRepOther);
 
       //传递概率
-      //updateTransitivePreds(otherHost);
+      updateTransitivePreds(otherHost);
 
       //传递声誉概率
       updateTransiveProPreds(otherHost);
@@ -246,7 +202,7 @@ public class MyRouter extends ProphetRouter {
       return t;
     }
     contributionTab.put(host, ((MyRouter)host.getRouter()).getSelfCon());
-    comsumptionTab.put(host, ((MyRouter)host.getRouter()).getSelfCom());
+    comsumptionTab.put(host, ((MyRouter)host.getRouter()).getSelfCon());
     return contributionTab.get(host) / (contributionTab.get(host) + comsumptionTab.get(host));
   }
 
@@ -274,7 +230,7 @@ public class MyRouter extends ProphetRouter {
       if (comsumptionTab.containsKey(mHost))
         aComsumption = comsumptionTab.get(mHost);
       else
-        comsumptionTab.put(mHost, ((MyRouter)mHost.getRouter()).getSelfCom());
+        comsumptionTab.put(mHost, ((MyRouter)mHost.getRouter()).getSelfCon());
       double t = (aContribution / (aContribution + aComsumption))*0.3 + getRep(mHost)*0.7;
       reputationTab.put(mHost, t);
     }
@@ -327,7 +283,7 @@ public class MyRouter extends ProphetRouter {
   }
 
   public double fuzzyLogic(double repFactor, double otherfactor, double probabilityFactor) {
-    String fileName = "/Users/wanghaoxiang/Documents/Code/one-framework/src/routing/repPro.fcl";
+    String fileName = "repPro.fcl";
     FIS fis = FIS.load(fileName, true);
     if (fis == null) { // Error while loading?
       System.err.println("Can't load file: '" + fileName + "'");

@@ -59,7 +59,7 @@ public class ProphetRouter extends ActiveRouter {
   private final double gamma;
 
   /** delivery predictabilities */
-  private Map<DTNHost, Double> preds;
+  protected Map<DTNHost, Double> preds;
   /** last delivery predictability update (sim)time */
   private double lastAgeUpdate;
 
@@ -154,7 +154,7 @@ public class ProphetRouter extends ActiveRouter {
    *
    * @param host The B host who we just met
    */
-  private void updateTransitivePreds(DTNHost host) {
+  protected void updateTransitivePreds(DTNHost host) {
     MessageRouter otherRouter = host.getRouter();
     assert otherRouter instanceof ProphetRouter
         : "PRoPHET only works " + " with other routers of same type";

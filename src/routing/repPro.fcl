@@ -1,0 +1,94 @@
+/*
+	Example: A tip calculation FIS (fuzzy inference system)
+	Calculates tip based on 'servie' and 'food'
+
+	If you want to about this example (and fuzzy logic), please
+	read Matlab's tutorial on fuzzy logic toolbox
+	http://www.mathworks.com/access/helpdesk/help/pdf_doc/fuzzy/fuzzy.pdf
+
+									Pablo Cingolani
+									pcingola@users.sourceforge.net
+*/
+
+FUNCTION_BLOCK tipper	// Block definition (there may be more than one block per file)
+
+VAR_INPUT				// Define input variables
+    ReputationSCore : REAL;
+	SocialSimilarity : REAL;
+	TransmissionCapacity: REAL;
+END_VAR
+
+VAR_OUTPUT				    // Define output variable
+	rank : REAL;
+END_VAR
+
+FUZZIFY ReputationScore		    // Fuzzify input variable 'Rep': {'Low', 'Medium' , 'High'}
+	TERM Low := (0, 1.0) (0.5, 0);
+	TERM Medium := (0, 0) (0.5, 1) (0.7, 0);
+	TERM High := (0.5, 0) (0.7, 1) (1,1);
+END_FUZZIFY
+
+FUZZIFY TransmissionCapacity	     // Fuzzify input variable 'stability': { 'Unstable', 'Medium', 'Stable' }
+	TERM Low := (0, 1) (0.2, 0);
+	TERM Medium := (0, 0) (0.2, 1) (0.4, 0);
+	TERM High := (0.2, 0) (0.4, 1) (1, 1);
+END_FUZZIFY
+
+FUZZIFY SocialSimilarity	// Fuzzify input variable 'conScore': {'Low', 'Medium' , 'High'}
+	TERM Low := (0, 1.0) (0.5, 0);
+	TERM Medium := (0, 0) (0.5, 1) (1, 0);
+	TERM High := (0.5, 0) (1, 1);
+END_FUZZIFY
+
+DEFUZZIFY rank		// Defzzzify output variable 'FP' : {'cheap', 'average', 'generous' }
+	TERM VeryBad := (0,1) (0.2,0);
+	TERM Bad := (0,0) (0.2,1) (0.4,0);
+	TERM Unpreferable := (0.2,0) (0.4,1) (0.6,0);
+	TERM Acceptable := (0.4,0) (0.6,1) (0.8,0);
+	TERM Good := (0.6,0) (0.8,1) (1.0,0);
+	TERM Perfect := (0.8,0) (1,1);
+	METHOD : COG;		// Use 'Center Of Gravity' defuzzification method
+	DEFAULT := 0;		// Default value is 0 (if no rule activates defuzzifier)
+END_DEFUZZIFY
+
+RULEBLOCK No1
+	AND : MIN;			// Use 'min' for 'and' (also implicit use 'max' for 'or' to fulfill DeMorgan's Law)
+	ACT : MIN;			// Use 'min' activation method
+	ACCU : MAX;			// Use 'max' accumulation method
+
+	RULE 1 : IF SocialSimilarity IS Low AND ReputationScore IS Low THEN rank IS VeryBad;
+
+	RULE 2 : IF SocialSimilarity IS Low AND ReputationScore IS Medium AND TransmissionCapacity IS Low THEN rank IS VeryBad;
+	RULE 3 : IF SocialSimilarity IS Low AND ReputationScore IS Medium AND TransmissionCapacity IS Medium THEN rank IS Bad;
+	RULE 4 : IF SocialSimilarity IS Low AND ReputationScore IS Medium AND TransmissionCapacity IS High THEN rank IS Bad;
+
+	RULE 5 : IF SocialSimilarity IS Low AND ReputationScore IS High AND TransmissionCapacity IS Low THEN rank IS Bad;
+	RULE 6 : IF SocialSimilarity IS Low AND ReputationScore IS High AND TransmissionCapacity IS Medium THEN rank IS Unpreferable;
+	RULE 7 : IF SocialSimilarity IS Low AND ReputationScore IS High AND TransmissionCapacity IS High THEN rank IS Unpreferable;
+
+	RULE 8 : IF SocialSimilarity IS Medium AND ReputationScore IS Low AND TransmissionCapacity IS Low THEN rank IS VeryBad;
+	RULE 9 : IF SocialSimilarity IS Medium AND ReputationScore IS Low AND TransmissionCapacity IS Medium THEN rank IS Bad;
+	RULE 10 : IF SocialSimilarity IS Medium AND ReputationScore IS Low AND TransmissionCapacity IS High THEN rank IS Bad;
+
+	RULE 11 : IF SocialSimilarity IS Medium AND ReputationScore IS Medium AND TransmissionCapacity IS Low THEN rank IS Unpreferable;
+    RULE 12 : IF SocialSimilarity IS Medium AND ReputationScore IS Medium AND TransmissionCapacity IS Medium THEN rank IS Unpreferable;
+    RULE 13 : IF SocialSimilarity IS Medium AND ReputationScore IS Medium AND TransmissionCapacity IS High THEN rank IS Acceptable;
+
+    RULE 14 : IF SocialSimilarity IS Medium AND ReputationScore IS High AND TransmissionCapacity IS Low THEN rank IS Acceptable;
+    RULE 15 : IF SocialSimilarity IS Medium AND ReputationScore IS High AND TransmissionCapacity IS Medium THEN rank IS Acceptable;
+    RULE 16 : IF SocialSimilarity IS Medium AND ReputationScore IS High AND TransmissionCapacity IS High THEN rank IS Good;
+
+    RULE 17 : IF SocialSimilarity IS High AND ReputationScore IS Low AND TransmissionCapacity IS Low THEN rank IS Bad;
+    RULE 18 : IF SocialSimilarity IS High AND ReputationScore IS Low AND TransmissionCapacity IS Medium THEN rank IS Unpreferable;
+    RULE 19 : IF SocialSimilarity IS High AND ReputationScore IS Low AND TransmissionCapacity IS High THEN rank IS Unpreferable;
+
+    RULE 20 : IF SocialSimilarity IS High AND ReputationScore IS Medium AND TransmissionCapacity IS Low THEN rank IS Acceptable;
+    RULE 21 : IF SocialSimilarity IS High AND ReputationScore IS Medium AND TransmissionCapacity IS Medium THEN rank IS Acceptable;
+    RULE 22 : IF SocialSimilarity IS High AND ReputationScore IS Medium AND TransmissionCapacity IS High THEN rank IS Good;
+
+    RULE 23 : IF SocialSimilarity IS High AND ReputationScore IS High AND TransmissionCapacity IS Low THEN rank IS Good;
+    RULE 24 : IF SocialSimilarity IS High AND ReputationScore IS High AND TransmissionCapacity IS Medium THEN rank IS Perfect;
+    RULE 25 : IF SocialSimilarity IS High AND ReputationScore IS High AND TransmissionCapacity IS High THEN rank IS Perfect;
+END_RULEBLOCK
+
+END_FUNCTION_BLOCK
