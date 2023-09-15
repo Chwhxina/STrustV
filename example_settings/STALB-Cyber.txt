@@ -106,8 +106,8 @@ Group3.router = V2xRouter
 Group3.movementModel = ShortestPathMapBasedMovement
 Group3.speed = [5,15]
 Group3.categoryMark = VEHICLE
-#Group3.nrofInterfaces = [1]
-#Group3.interface1 = btInterface
+Group3.nrofInterfaces = [1]
+Group3.interface1 = vvInterface
 Group3.msgTtl = [60]
 
 Group4.groupID = [SF]
@@ -115,8 +115,8 @@ Group4.router = V2xRouter
 Group4.movementModel = ShortestPathMapBasedMovement
 Group4.speed = [5,15]
 Group4.categoryMark = VEHICLE
-#Group4.nrofInterfaces = [1]
-#Group4.interface1 = btInterface
+Group4.nrofInterfaces = [1]
+Group4.interface1 = vvInterface
 Group4.msgTtl = [60]
 
 Group1.nrofHosts = [20]

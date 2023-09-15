@@ -63,9 +63,10 @@ public class V2xRouter extends MultipathTrajectoryVehicleToRouterRouter{
 
         // 将目的地为车辆的消息通过V2V接口发送
         Collection<Message> msgToAll = getMessageCollection();
+
+
         Collection<Message> msgToVehicle = msgToAll.stream().filter(
-                m -> !m.getTo().toString().startsWith("R")
-        ).collect(Collectors.toList());
+                m -> !m.getTo().toString().startsWith("R")).collect(Collectors.toList());
         for (Connection c : getConnectionsByInterface("V2V")) {
             DTNHost otherHost = c.getOtherNode(this.getHost());
             var otherRouter = (V2xRouter) otherHost.getRouter();
@@ -80,56 +81,56 @@ public class V2xRouter extends MultipathTrajectoryVehicleToRouterRouter{
         }
         //消息按照综合得分进行排序
         Collections.sort(midQueue, new TupleComparatorV2V());
-        tryMessagesForConnected(midQueue);
-        midQueue.clear();
-
-        // 将目的地为路由器的消息通过V2R接口发送
-        //首先处理急需中转的数据
-        for (Message m : getMsgFromRouter().values()) {
-            //针对于数据的中转目的地，选择距离数据目的地最近的节点
-            for (Tuple<Connection, Double> e : getMinDistanceRouter(m)) {
-                if (!this.isCongestion(e.getKey().getOtherNode(getHost()))) {
-                    priorityQueue.add(new Tuple<Message, Connection>(m, e.getKey()));
-                    break;
-                }
-            }
-        }
-        // Collection<Message> msgCollection = getMessageCollection().stream().filter(
-        //     m -> m.getTo().toString().startsWith("R")
-        // ).collect(Collectors.toList());
-        Collection<Message> msgCollection = getMessageCollection();
-        for (Connection c : getConnectionsByInterface("V2R")) {
-            DTNHost other = c.getOtherNode(getHost());
-            MultipahTrajectoryTimeSpaceRouter otherRouter = (MultipahTrajectoryTimeSpaceRouter) other.getRouter();
-            //			VRCRouter otherRouter = (VRCRouter)other.getRouter();
-            for (Message m : msgCollection) {
-                //When the message has arrived its destination, do nothing.
-                if (getackedMessageIds().contains(m.getId())) {
-                    continue;
-                }
-                if (getSendRSU().containsKey(m.getId())) {
-                    if (this.getSendRSU().get(m.getId()).contains(other.name)) {
-                        continue;
-                    }
-                }
-                //STALB的判断机制
-                if (otherRouter.hasMessage(m.getId())
-                        && otherRouter.isConatinMsg(m.getId(), m.getCopyVersion())) {
-                    continue;
-                }
-                if (otherRouter.isTransferring()) {
-                    continue;
-                }
-
-                Integer nrofCopies = (Integer) m.getProperty(MSG_COUNT_PROPERTY);
-                if (nrofCopies > 1) {
-                    midQueue.add(new Tuple<Message, Connection>(m, c));
-                }
-            }
-        }
-        Collections.sort(midQueue, new TupleComparator());
-        priorityQueue.addAll(midQueue);
-        return tryMessagesForConnected(priorityQueue);
+        return tryMessagesForConnected(midQueue);
+//        midQueue.clear();
+//
+//        // 将目的地为路由器的消息通过V2R接口发送
+//        // 首先处理急需中转的数据
+//        for (Message m : getMsgFromRouter().values()) {
+//            //针对于数据的中转目的地，选择距离数据目的地最近的节点
+//            for (Tuple<Connection, Double> e : getMinDistanceRouter(m)) {
+//                if (!this.isCongestion(e.getKey().getOtherNode(getHost()))) {
+//                    priorityQueue.add(new Tuple<Message, Connection>(m, e.getKey()));
+//                    break;
+//                }
+//            }
+//        }
+//        // Collection<Message> msgCollection = getMessageCollection().stream().filter(
+//        //     m -> m.getTo().toString().startsWith("R")
+//        // ).collect(Collectors.toList());
+//        Collection<Message> msgCollection = getMessageCollection();
+//        for (Connection c : getConnectionsByInterface("V2R")) {
+//            DTNHost other = c.getOtherNode(getHost());
+//            MultipahTrajectoryTimeSpaceRouter otherRouter = (MultipahTrajectoryTimeSpaceRouter) other.getRouter();
+//            //			VRCRouter otherRouter = (VRCRouter)other.getRouter();
+//            for (Message m : msgCollection) {
+//                //When the message has arrived its destination, do nothing.
+//                if (getackedMessageIds().contains(m.getId())) {
+//                    continue;
+//                }
+//                if (getSendRSU().containsKey(m.getId())) {
+//                    if (this.getSendRSU().get(m.getId()).contains(other.name)) {
+//                        continue;
+//                    }
+//                }
+//                //STALB的判断机制
+//                if (otherRouter.hasMessage(m.getId())
+//                        && otherRouter.isConatinMsg(m.getId(), m.getCopyVersion())) {
+//                    continue;
+//                }
+//                if (otherRouter.isTransferring()) {
+//                    continue;
+//                }
+//
+//                Integer nrofCopies = (Integer) m.getProperty(MSG_COUNT_PROPERTY);
+//                if (nrofCopies > 1) {
+//                    midQueue.add(new Tuple<Message, Connection>(m, c));
+//                }
+//            }
+//        }
+//        Collections.sort(midQueue, new TupleComparator());
+//        priorityQueue.addAll(midQueue);
+//        return tryMessagesForConnected(priorityQueue);
     }
 
     /***

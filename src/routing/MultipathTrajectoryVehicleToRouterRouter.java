@@ -181,7 +181,6 @@ public class MultipathTrajectoryVehicleToRouterRouter extends SourceSprayAndWait
     if (tuples.size() == 0) {
       return null;
     }
-
     for (Tuple<Message, Connection> t : tuples) {
       Message m = t.getKey();
       //update the version number of copies
@@ -191,7 +190,6 @@ public class MultipathTrajectoryVehicleToRouterRouter extends SourceSprayAndWait
 
       Connection con = t.getValue();
       if (startTransfer(m, con) == RCV_OK) {
-
         return t;
       } else {
         m.downUpdateLastCopyVersion();
