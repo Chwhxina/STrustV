@@ -177,7 +177,7 @@ public class V2xRouter extends MultipathTrajectoryVehicleToRouterRouter{
             double finalScore;  //con连接节点的finalScore
             DTNHost otherHost = con.getOtherNode(this.getHost());
             updateDeliveryPredFor(otherHost);   //遇见后更新碰撞因素
-            updateRep();   //更新声誉
+            updateRep(otherHost);   //更新声誉
             double repFactor = this.getRep(otherHost);
             double energyPart = (((V2xRouter)otherHost.getRouter()).energy.getEnergy() / 40000);
             double otherFactor = 0.3 * stableScore(otherHost) + 0.5 * energyPart
@@ -291,40 +291,34 @@ public class V2xRouter extends MultipathTrajectoryVehicleToRouterRouter{
      * update Reputation information
      * </CODE>
      */
-    protected void updateRep() {
-        double aContribution = 1;
-        double aComsumption = 1;
+    protected void updateRep(DTNHost host) {
+        double cont = 1.0;
+        double cons = 1.0;
+        if(contributionTab.containsKey(host) && consumptionTab.containsKey(host)) {
+            cont = contributionTab.get(host);
+            cons = consumptionTab.get(host);
+            reputationTab.put(host, cont/(cons + cont));
+        }else {
+            contributionTab.put(host, 1.0);
+            consumptionTab.put(host, 1.0);
+            reputationTab.put(host, 0.5);
+        }
+
         for (DTNHost otherHost : getHost().getNeighborsByInterface("V2V")) {
-            if (contributionTab.containsKey(otherHost))
-                aContribution = contributionTab.get(otherHost);
+            cont = 1.0;
+            cons = 1.0;
+            if (((V2xRouter)otherHost.getRouter()).contributionTab.containsKey(host))
+                cont = ((V2xRouter)otherHost.getRouter()).contributionTab.get(host);
             else {
-                contributionTab.put(otherHost, ((V2xRouter) otherHost.getRouter()).getSelfCont());
+                ((V2xRouter)otherHost.getRouter()).contributionTab.put(host, contributionTab.get(host));
             }
-            if (consumptionTab.containsKey(otherHost))
-                aComsumption = consumptionTab.get(otherHost);
+            if (((V2xRouter)otherHost.getRouter()).consumptionTab.containsKey(host))
+                cons = ((V2xRouter)otherHost.getRouter()).consumptionTab.get(host);
             else
-                consumptionTab.put(otherHost, ((V2xRouter)otherHost.getRouter()).getSelfCons());
-            double t = (aContribution / (aContribution + aComsumption))*0.3 + getRep(otherHost)*0.7;
-            reputationTab.put(otherHost, t);
+                ((V2xRouter)otherHost.getRouter()).consumptionTab.put(otherHost, consumptionTab.get(host));
+            double t = (cont / (cont + cons))*0.3 + reputationTab.get(host) * 0.7;
+            reputationTab.put(host, t);
         }
-    }
-
-    public double getSelfCont() {
-        if(!initRep){
-            contributionTab.put(this.getHost(), 1.0);
-            consumptionTab.put(this.getHost(), 1.0);
-            initRep = true;
-        }
-        return contributionTab.get(this.getHost());
-    }
-
-    public double getSelfCons() {
-        if(!initRep){
-            contributionTab.put(this.getHost(), 1.0);
-            consumptionTab.put(this.getHost(), 1.0);
-            initRep = true;
-        }
-        return consumptionTab.get(this.getHost());
     }
 
     /***
@@ -333,16 +327,8 @@ public class V2xRouter extends MultipathTrajectoryVehicleToRouterRouter{
      * @return 声誉值
      */
     protected double getRep(DTNHost host) {
-        if(reputationTab.containsKey(host))
-            return reputationTab.get(host);
-        if(consumptionTab.containsKey(host) && contributionTab.containsKey(host)) {
-            double t = contributionTab.get(host) / (contributionTab.get(host) + consumptionTab.get(host));
-            reputationTab.put(host, t);
-            return t;
-        }
-        contributionTab.put(host, ((V2xRouter)host.getRouter()).getSelfCont());
-        consumptionTab.put(host, ((V2xRouter)host.getRouter()).getSelfCons());
-        return contributionTab.get(host) / (contributionTab.get(host) + consumptionTab.get(host));
+        updateRep(host);
+        return reputationTab.get(host);
     }
 
     public V2xRouter replicate() {
@@ -379,19 +365,23 @@ public class V2xRouter extends MultipathTrajectoryVehicleToRouterRouter{
     @Override
     public Message messageTransferred(String id, DTNHost from) {
         Message msg =  super.messageTransferred(id, from);
-        System.out.println("DTN"+ getHost().toString() + " cont"+contributionTab.get(getHost())+" cons"+consumptionTab.get(getHost())+" rep"+getRep(getHost()));
+        System.out.println("DTN"+ getHost().toString() + " cont"+contributionTab.get(getHost())+
+                " cons"+consumptionTab.get(getHost())+" rep"+getRep(getHost()));
         boolean isDelivered = this.isDeliveredMessage(msg);
         for(var mHost : this.getHost().getNeighborsByInterface("V2V")) {
             if(isDelivered) {
-                ((V2xRouter)mHost.getRouter()).consumptionTab.computeIfPresent(this.getHost(), (key, value) -> value = value + VehicleHopCount(msg));
-                ((V2xRouter)mHost.getRouter()).consumptionTab.computeIfPresent(msg.getFrom(), (key, value) -> value = value + VehicleHopCount(msg));
-                contributionTab.computeIfPresent(from, (key, value) -> value + 1);
+                int vehicleHop = VehicleHopCount(msg) - 1;
+                ((V2xRouter)mHost.getRouter()).consumptionTab.computeIfPresent(this.getHost(), (key, value) -> value = value + vehicleHop);
+                ((V2xRouter)mHost.getRouter()).consumptionTab.computeIfPresent(msg.getFrom(), (key, value) -> value = value + vehicleHop);
+                ((V2xRouter)mHost.getRouter()).contributionTab.computeIfPresent(from, (key, value) -> value + 1);
             } else {
                 ((V2xRouter)mHost.getRouter()).contributionTab.computeIfPresent(this.getHost(), (key, value) -> value + 1);
             }
         }
-        if(isDelivered)
-            consumptionTab.computeIfPresent(msg.getFrom(), (key, value) -> value = value + VehicleHopCount(msg));
+        if(isDelivered){
+            int vehicleHop = VehicleHopCount(msg);
+            consumptionTab.computeIfPresent(msg.getFrom(), (key, value) -> value = value + vehicleHop);
+        }
         contributionTab.computeIfPresent(from, (key, value) -> value + 1);
         return msg;
     }
