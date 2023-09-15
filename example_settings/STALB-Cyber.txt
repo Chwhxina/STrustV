@@ -125,8 +125,8 @@ Group3.nrofHosts = [40]
 Group4.nrofHosts = [10]
 
 Events1.interval =[5]
-Events1.hosts = [100,139]
-Events1.tohosts = [0,149]
+Events1.hosts = [100,149]
+Events1.tohosts = [100,149]
 
 ##############################
 #####Report Configuration#####

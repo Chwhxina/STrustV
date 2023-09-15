@@ -62,7 +62,8 @@ public class V2xRouter extends MultipathTrajectoryVehicleToRouterRouter{
         List<Tuple<Message, Connection>> midQueue = new ArrayList<Tuple<Message, Connection>>();
 
         // 将目的地为车辆的消息通过V2V接口发送
-        Collection<Message> msgToVehicle = getMessageCollection().stream().filter(
+        Collection<Message> msgToAll = getMessageCollection();
+        Collection<Message> msgToVehicle = msgToAll.stream().filter(
                 m -> !m.getTo().toString().startsWith("R")
         ).collect(Collectors.toList());
         for (Connection c : getConnectionsByInterface("V2V")) {
@@ -284,8 +285,6 @@ public class V2xRouter extends MultipathTrajectoryVehicleToRouterRouter{
         }
         this.lastAgeUpdate = SimClock.getTime();
     }
-
-
 
     /**
      * update Reputation information
