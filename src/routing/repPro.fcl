@@ -13,7 +13,7 @@
 FUNCTION_BLOCK tipper	// Block definition (there may be more than one block per file)
 
 VAR_INPUT				// Define input variables
-    ReputationSCore : REAL;
+    ReputationScore : REAL;
 	SocialSimilarity : REAL;
 	TransmissionCapacity: REAL;
 END_VAR

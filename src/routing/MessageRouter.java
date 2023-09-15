@@ -91,7 +91,7 @@ public abstract class MessageRouter {
   /** The messages this router is carrying */
   protected HashMap<String, Message> messages;
   /** The messages this router has received as the final recipient */
-  private HashMap<String, Message> deliveredMessages;
+  public HashMap<String, Message> deliveredMessages;
   /** The messages that Applications on this router have blacklisted */
   private HashMap<String, Object> blacklistedMessages;
   /** Host where this router belongs to */

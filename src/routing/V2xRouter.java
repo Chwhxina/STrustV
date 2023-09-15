@@ -36,6 +36,7 @@ public class V2xRouter extends MultipathTrajectoryVehicleToRouterRouter{
         contributionTab = new HashMap<DTNHost, Double>();
         reputationTab = new HashMap<DTNHost, Double>();
         finalScoreTab = new HashMap<>();
+        this.preds = new HashMap<>();
         initRep = false;
     }
     public V2xRouter(V2xRouter r) {
@@ -148,14 +149,20 @@ public class V2xRouter extends MultipathTrajectoryVehicleToRouterRouter{
      * @return 移动稳定性分数
      */
     public double stableScore(DTNHost targetHost) {
-        double maxSpeedGap = targetHost.getPath().getSpeed();
+        double maxSpeedGap = getVehicleSpeed(targetHost);
         double accumulateSpeedGap = 0;
         int a = targetHost.getNeighbors().size();
         for(var mHost : targetHost.getNeighbors()) {
-            maxSpeedGap = Math.max(mHost.getPath().getSpeed(), maxSpeedGap);
-            accumulateSpeedGap += Math.abs(mHost.getPath().getSpeed() - targetHost.getPath().getSpeed());
+            maxSpeedGap = Math.max(getVehicleSpeed(mHost), maxSpeedGap);
+            accumulateSpeedGap += Math.abs(getVehicleSpeed(mHost) - getVehicleSpeed(targetHost));
         }
         return 1 - ((accumulateSpeedGap / a) / maxSpeedGap);
+    }
+
+    private double getVehicleSpeed(DTNHost otherHost) {
+        if(otherHost.getPath() == null)
+            return 0;
+        return otherHost.getPath().getSpeed();
     }
 
     /***
@@ -164,24 +171,26 @@ public class V2xRouter extends MultipathTrajectoryVehicleToRouterRouter{
      */
     @Override
     public void changedConnection(Connection con) {
-        double finalScore;  //con连接节点的finalScore
         super.changedConnection(con);
-        DTNHost otherHost = con.getOtherNode(this.getHost());
-        updateDeliveryPredFor(otherHost);   //更新
-        updateRep(this.getHost().getNeighbors());   //更新声誉
-        double repFactor = this.getRep(otherHost);
-        double energyPart = (((V2xRouter)otherHost.getRouter()).energy.getEnergy() / 40000);
-        double otherFactor = 0.3 * stableScore(otherHost) + 0.5 * energyPart
-                + 0.2 * (1.0-(otherHost.getBufferOccupancy()/100.0));
-        finalScore = fuzzyLogic(repFactor, otherFactor, getPredFor(otherHost));
-        this.preds.put(otherHost, finalScore);
+        //针对V2V的连接更新声誉
+        if(con.getOtherNode(getHost()).getCategoryMark().equals("VEHICLE")) {
+            double finalScore;  //con连接节点的finalScore
+            DTNHost otherHost = con.getOtherNode(this.getHost());
+            updateDeliveryPredFor(otherHost);   //遇见后更新碰撞因素
+            updateRep();   //更新声誉
+            double repFactor = this.getRep(otherHost);
+            double energyPart = (((V2xRouter)otherHost.getRouter()).energy.getEnergy() / 40000);
+            double otherFactor = 0.3 * stableScore(otherHost) + 0.5 * energyPart
+                    + 0.2 * (1.0-(otherHost.getBufferOccupancy()/100.0));
+            finalScore = fuzzyLogic(repFactor, otherFactor, getPredFor(otherHost));
+            this.preds.put(otherHost, finalScore);
 
-        //传递概率
-        updateTransitivePreds(otherHost);
+            //传递概率
+            updateTransitivePreds(otherHost);
 
-        //传递声誉
-        updateTransiveFinalScore(otherHost);
-
+            //传递声誉
+            updateTransiveFinalScore(otherHost);
+        }
 
         if (con.isUp()) {
             Set<String> aMs = new HashSet<String>(
@@ -281,33 +290,41 @@ public class V2xRouter extends MultipathTrajectoryVehicleToRouterRouter{
     /**
      * update Reputation information
      * </CODE>
-     * @param neighbourHost The host we just met
      */
-    protected void updateRep(List<DTNHost> neighbourHost) {
+    protected void updateRep() {
         double aContribution = 1;
         double aComsumption = 1;
-        for (var mHost : neighbourHost) {
-            if (contributionTab.containsKey(mHost))
-                aContribution = contributionTab.get(mHost);
+        for (DTNHost otherHost : getHost().getNeighborsByInterface("V2V")) {
+            if (contributionTab.containsKey(otherHost))
+                aContribution = contributionTab.get(otherHost);
             else {
-                contributionTab.put(mHost, ((V2xRouter) mHost.getRouter()).getSelfCon());
+                contributionTab.put(otherHost, ((V2xRouter) otherHost.getRouter()).getSelfCont());
             }
-            if (consumptionTab.containsKey(mHost))
-                aComsumption = consumptionTab.get(mHost);
+            if (consumptionTab.containsKey(otherHost))
+                aComsumption = consumptionTab.get(otherHost);
             else
-                consumptionTab.put(mHost, ((V2xRouter)mHost.getRouter()).getSelfCon());
-            double t = (aContribution / (aContribution + aComsumption))*0.3 + getRep(mHost)*0.7;
-            reputationTab.put(mHost, t);
+                consumptionTab.put(otherHost, ((V2xRouter)otherHost.getRouter()).getSelfCons());
+            double t = (aContribution / (aContribution + aComsumption))*0.3 + getRep(otherHost)*0.7;
+            reputationTab.put(otherHost, t);
         }
     }
 
-    public double getSelfCon() {
+    public double getSelfCont() {
         if(!initRep){
             contributionTab.put(this.getHost(), 1.0);
             consumptionTab.put(this.getHost(), 1.0);
             initRep = true;
         }
         return contributionTab.get(this.getHost());
+    }
+
+    public double getSelfCons() {
+        if(!initRep){
+            contributionTab.put(this.getHost(), 1.0);
+            consumptionTab.put(this.getHost(), 1.0);
+            initRep = true;
+        }
+        return consumptionTab.get(this.getHost());
     }
 
     /***
@@ -323,8 +340,8 @@ public class V2xRouter extends MultipathTrajectoryVehicleToRouterRouter{
             reputationTab.put(host, t);
             return t;
         }
-        contributionTab.put(host, ((V2xRouter)host.getRouter()).getSelfCon());
-        consumptionTab.put(host, ((V2xRouter)host.getRouter()).getSelfCon());
+        contributionTab.put(host, ((V2xRouter)host.getRouter()).getSelfCont());
+        consumptionTab.put(host, ((V2xRouter)host.getRouter()).getSelfCons());
         return contributionTab.get(host) / (contributionTab.get(host) + consumptionTab.get(host));
     }
 
@@ -340,7 +357,7 @@ public class V2xRouter extends MultipathTrajectoryVehicleToRouterRouter{
      * @return finalSCore
      */
     public double fuzzyLogic(double repFactor, double otherfactor, double probabilityFactor) {
-        String fileName = "/Users/wanghaoxiang/Documents/Code/one-framework/src/routing/repPro.fcl";
+        String fileName = "./src/routing/repPro.fcl";
         FIS fis = FIS.load(fileName, true);
         if (fis == null) { // Error while loading?
             System.err.println("Can't load file: '" + fileName + "'");
@@ -350,46 +367,42 @@ public class V2xRouter extends MultipathTrajectoryVehicleToRouterRouter{
         FunctionBlock functionBlock = fis.getFunctionBlock(null);
 
         // Set inputs
-        functionBlock.setVariable("repFactor", repFactor);
-        functionBlock.setVariable("otherFactor", otherfactor);
-        functionBlock.setVariable("socialSimilarity", probabilityFactor);
+        functionBlock.setVariable("ReputationScore", repFactor);
+        functionBlock.setVariable("TransmissionCapacity", otherfactor);
+        functionBlock.setVariable("SocialSimilarity", probabilityFactor);
 
         // begin
         functionBlock.evaluate();
         return functionBlock.getVariable("rank").getValue();
     }
 
-    /***
-     * rewrite createNewMessage method to update comsumptionTab
-     * @param msg The message to create
-     * @return is successful creat a new message
-     */
-    @Override
-    public boolean createNewMessage(Message msg) {
-        this.consumptionTab.computeIfPresent(this.getHost(), (key, value) -> value = value + 2);
-        System.out.println("DTN"+ getHost().toString() + " con"+contributionTab.get(getHost())+" com"+consumptionTab.get(getHost())+" rep"+getRep(getHost()));
-        return super.createNewMessage(msg);
-    }
-
     @Override
     public Message messageTransferred(String id, DTNHost from) {
         Message msg =  super.messageTransferred(id, from);
+        System.out.println("DTN"+ getHost().toString() + " cont"+contributionTab.get(getHost())+" cons"+consumptionTab.get(getHost())+" rep"+getRep(getHost()));
         boolean isDelivered = this.isDeliveredMessage(msg);
-        for(var mHost : this.getHost().getNeighbors()) {
+        for(var mHost : this.getHost().getNeighborsByInterface("V2V")) {
             if(isDelivered) {
-                ((V2xRouter)mHost.getRouter()).consumptionTab.computeIfPresent(this.getHost(), (key, value) -> value = value + msg.getHopCount());
-                ((V2xRouter)mHost.getRouter()).consumptionTab.computeIfPresent(msg.getFrom(), (key, value) -> value = value + msg.getHopCount());
+                ((V2xRouter)mHost.getRouter()).consumptionTab.computeIfPresent(this.getHost(), (key, value) -> value = value + VehicleHopCount(msg));
+                ((V2xRouter)mHost.getRouter()).consumptionTab.computeIfPresent(msg.getFrom(), (key, value) -> value = value + VehicleHopCount(msg));
+                contributionTab.computeIfPresent(from, (key, value) -> value + 1);
             } else {
                 ((V2xRouter)mHost.getRouter()).contributionTab.computeIfPresent(this.getHost(), (key, value) -> value + 1);
-                ((V2xRouter)mHost.getRouter()).contributionTab.computeIfPresent(from, (key, value) -> value + 1);
-                ((V2xRouter)mHost.getRouter()).consumptionTab.computeIfPresent(msg.getFrom(), (key, value) -> value + 2);
             }
         }
         if(isDelivered)
-            consumptionTab.computeIfPresent(msg.getFrom(), (key, value) -> value = value + msg.getHopCount());
-        else
-            contributionTab.computeIfPresent(from, (key, value) -> value + 1);
+            consumptionTab.computeIfPresent(msg.getFrom(), (key, value) -> value = value + VehicleHopCount(msg));
+        contributionTab.computeIfPresent(from, (key, value) -> value + 1);
         return msg;
+    }
+
+    private int VehicleHopCount(Message msg) {
+        int count = 0;
+        for(var mHost : msg.getPassedPath()) {
+            if(mHost.getCategoryMark().equals("VEHICLE"))
+                count++;
+        }
+        return count;
     }
 
     protected class TupleComparatorV2V implements Comparator<Tuple<Message, Connection>> {

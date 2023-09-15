@@ -32,7 +32,7 @@ vvInterface.name = V2V
 vvInterface.transmitSpeed = [500k]
 vvInterface.transmitRange = [200]
 
-Scenario.nrofHostGroups = [3]
+Scenario.nrofHostGroups = [4]
 
 Group.router = [SourceSprayAndWaitRouter]
 Group.bufferSize = [1G]
@@ -126,9 +126,7 @@ Group4.nrofHosts = [10]
 
 Events1.interval =[5]
 Events1.hosts = [100,139]
-Events1.tohosts = [0,99]
-#Events1.hosts = [80,119]
-#Events1.tohosts = [0,79]
+Events1.tohosts = [0,149]
 
 ##############################
 #####Report Configuration#####
@@ -174,11 +172,14 @@ Group1.intialEnergy = [108000]
 
 /*----108000KJ/161000Meters=0.67801KJ/Meters----*/
 Group3.initialEnergy = [108000]
-Group3.movingEnergy = [0]
+Group4.initialEnergy = [108000]
 
 Group3.scanEnergy = [1]
 Group3.scanResponseEnergy = [1]
 Group3.transmitEnergy = [2]
+Group4.scanEnergy = [1]
+Group4.scanResponseEnergy = [1]
+Group4.transmitEnergy = [2]
 
 #####################################
 Selection CS: 0= Distance;
